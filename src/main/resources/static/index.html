@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>FA Request</title>
+  <style>
+    :root {
+      --bg: #e6f7f7;       /* light teal background */
+      --panel: #ffffff;    /* white form card */
+      --text: #123b3b;     /* dark teal text */
+      --muted: #4f7777;    /* softer teal-gray */
+      --accent: #2ab7b7;   /* teal button */
+      --accent-hover: #229999;
+      --success: #1d8659;
+      --error: #c0392b;
+      --border: #b2d8d8;
+      --shadow: rgba(0,0,0,.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 6px 16px var(--shadow);
+      padding: 24px;
+      width: 100%;
+      max-width: 720px;
+    }
+    h1 { margin: 0 0 8px; }
+    p.sub { margin: 0 0 24px; color: var(--muted); }
+    form { display: grid; gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    label { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+    input, textarea {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 15px;
+      color: var(--text);
+    }
+    input:focus, textarea:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(42,183,183,.2);
+    }
+    textarea { resize: vertical; min-height: 90px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+    button {
+      border: 0; border-radius: 8px; padding: 10px 16px;
+      cursor: pointer; font-weight: 600; font-size: 15px;
+    }
+    button.primary { background: var(--accent); color: white; }
+    button.primary:hover { background: var(--accent-hover); }
+    button.secondary {
+      background: #f4fdfd; border: 1px solid var(--border);
+      color: var(--text);
+    }
+    button.outline {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .status { min-height: 22px; font-size: 14px; }
+    .ok { color: var(--success); }
+    .err { color: var(--error); }
+    @media (max-width: 700px){ .grid-2{ grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>FA Request</h1>
+    <p class="sub">Submit a Feature/FA request. Your entries are saved to the server and downloadable as CSV.</p>
+
+    <form id="faForm">
+      <div class="grid-2">
+        <label>Program Name
+          <input name="programName" required placeholder="e.g., Alpha Program"/>
+        </label>
+        <label>Product Name
+          <input name="productName" required placeholder="e.g., Widget 3000"/>
+        </label>
+      </div>
+
+      <div class="grid-2">
+        <label>Contact
+          <input name="contact" required placeholder="e.g., Jane Doe"/>
+        </label>
+        <label>JO#
+          <input name="joNumber" required placeholder="e.g., JO-12345"/>
+        </label>
+      </div>
+
+      <div class="grid-2">
+        <label>Submission Date
+          <input type="date" name="submissionDate" required/>
+        </label>
+        <label>Need By
+          <input type="date" name="needByDate" required/>
+        </label>
+      </div>
+
+      <label>Description
+        <textarea name="description" required placeholder="Briefly describe the request..."></textarea>
+      </label>
+
+      <div class="actions">
+        <button type="submit" class="primary">Submit</button>
+        <button type="reset" class="outline">Reset</button>
+        <button type="button" id="downloadCsvBtn" class="secondary">Download CSV</button>
+      </div>
+
+      <div id="status" class="status" aria-live="polite"></div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('faForm');
+    const status = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      status.textContent = 'Saving…'; status.className = 'status';
+      const data = Object.fromEntries(new FormData(form).entries());
+
+      try {
+        const res = await fetch('/api/fa-requests', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error(await res.text());
+        status.textContent = 'Saved!'; status.className = 'status ok';
+        form.reset();
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
+        status.className = 'status err';
+      }
+    });
+
+    // CSV download via blob
+    document.getElementById('downloadCsvBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/fa-requests/download.csv');
+        if (!res.ok) throw new Error('Failed to download CSV');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'fa-requests.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        status.textContent = 'Download error: ' + err.message;
+        status.className = 'status err';
+      }
+    });
+  </script>
+</body>
+</html>
