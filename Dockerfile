@@ -1,18 +1,14 @@
-# 1) Build stage
-FROM eclipse-temurin:21-jdk AS build
+# Build stage with Maven preinstalled
+FROM maven:3.9.8-eclipse-temurin-21 AS build
 WORKDIR /app
-COPY mvnw ./
-COPY .mvn .mvn
-COPY pom.xml ./
-RUN ./mvnw -B -DskipTests dependency:go-offline
+COPY pom.xml .
+RUN mvn -B -DskipTests dependency:go-offline
 COPY src src
-RUN ./mvnw -B -DskipTests clean package
+RUN mvn -B -DskipTests clean package
 
-# 2) Run stage (smaller image)
+# Run stage
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-# copy the built jar
 COPY --from=build /app/target/*.jar app.jar
-# expose (Render will pass PORT env var)
 ENV PORT=8080
 CMD ["java","-jar","/app/app.jar"]
